@@ -1,4 +1,4 @@
-// ✅ /api/word-info.js - OpenAI応答ログ付き・代替辞書構成あり
+// ✅ /api/word-info.js - OpenAI応答ログ付き・代替辞書構成あり・画像強化版
 
 export default async function handler(req, res) {
   const { word } = req.query;
@@ -34,9 +34,10 @@ export default async function handler(req, res) {
   };
 
   try {
-    // ✅ Google画像取得
+    // ✅ 画像検索クエリを強化
+    const imgQuery = `${word} english meaning`;
     const imgRes = await fetch(
-      `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${word}&searchType=image&num=2`
+      `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${encodeURIComponent(imgQuery)}&searchType=image&num=2`
     );
     const imgJson = await imgRes.json();
     const images = imgJson.items?.map((item) => item.link) || [];
