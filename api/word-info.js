@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   const GOOGLE_CX = '27e106d19abd94bb0';
 
   const extractJsonFromText = (text) => {
-    const match = text.match(/\{[.\s\S]*?\}/);
+    const match = text.match(/\{[\s\S]*?\}/);
     if (match) {
       try {
         return JSON.parse(match[0]);
@@ -20,14 +20,14 @@ export default async function handler(req, res) {
   };
 
   try {
-    // ✅ 画像取得（Googleカスタム検索）
+    // ✅ Google画像取得
     const imgRes = await fetch(
       `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${word}&searchType=image&num=2`
     );
     const imgJson = await imgRes.json();
     const images = imgJson.items?.map((item) => item.link) || [];
 
-    // ✅ OpenAIで情報取得
+    // ✅ OpenAIから情報取得
     const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -39,7 +39,16 @@ export default async function handler(req, res) {
         messages: [
           {
             role: 'user',
-            content: `以下の形式で、単語 "${word}" に関する情報をすべて日本語で出力してください。\nJSON形式のみ返し、前後に説明や記号（コードブロック）は加えないでください。\n\n{\n  "meaning": "...",\n  "synonyms": ["...", "...", "..."],\n  "simpleSynonyms": ["...", "..."],\n  "etymology": "...",\n  "culturalBackground": "...",\n  "trivia": "..." \n}`,
+            content: `英単語 "${word}" について、以下の形式のJSONのみを返してください。前後に説明・記号・コードブロック（\`\`\`）は一切不要です。
+
+{
+  "meaning": "...",
+  "synonyms": ["...", "...", "..."],
+  "simpleSynonyms": ["...", "..."],
+  "etymology": "...",
+  "culturalBackground": "...",
+  "trivia": "..."
+}`,
           },
         ],
         temperature: 0.7,
@@ -48,8 +57,8 @@ export default async function handler(req, res) {
 
     const aiJson = await openaiRes.json();
     const aiContent = aiJson.choices?.[0]?.message?.content || '';
-
     let parsed = extractJsonFromText(aiContent);
+
     if (!parsed) {
       parsed = {
         meaning: `${word} の簡易な意味は取得できませんでした。`,
