@@ -1,6 +1,4 @@
-const axios = require('axios');
-
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   const { word } = req.query;
   if (!word) return res.status(400).json({ error: 'word is required' });
 
@@ -8,23 +6,16 @@ module.exports = async (req, res) => {
   const CX = '27e106d19abd94bb0';
 
   try {
-    // Google画像検索API
-    const imageRes = await axios.get('https://www.googleapis.com/customsearch/v1', {
-      params: {
-        key: API_KEY,
-        cx: CX,
-        q: word,
-        searchType: 'image',
-        num: 2
-      }
-    });
+    // Google画像検索（fetch版）
+    const imageRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX}&q=${word}&searchType=image&num=2`);
+    const imageData = await imageRes.json();
+    const images = imageData.items?.map(item => item.link) || [];
 
-    const images = imageRes.data.items.map(item => item.link);
+    // Wikipedia要約（fetch版）
+    const wikiRes = await fetch(`https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(word)}`);
+    const wikiData = await wikiRes.ok ? await wikiRes.json() : null;
 
-    // Wikipedia要約（日本語）
-    const wikiRes = await axios.get(`https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(word)}`).catch(() => null);
-
-    const summary = wikiRes?.data?.extract || `${word} に関する情報はWikipediaで見つかりませんでした。`;
+    const summary = wikiData?.extract || `${word} に関する情報はWikipediaで見つかりませんでした。`;
     const trimmed = summary.length > 180 ? summary.slice(0, 160) + '...' : summary;
 
     res.status(200).json({
@@ -38,7 +29,7 @@ module.exports = async (req, res) => {
       images
     });
   } catch (error) {
-    console.error(error.message);
+    console.error('API ERROR:', error);
     res.status(500).json({ error: 'データ取得に失敗しました' });
   }
-};
+}
