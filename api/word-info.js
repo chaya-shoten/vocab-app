@@ -8,15 +8,23 @@ export default async function handler(req, res) {
   const GOOGLE_CX = '27e106d19abd94bb0';
 
   const extractJsonFromText = (text) => {
-    const match = text.match(/\{[\s\S]*?\}/);
-    if (match) {
-      try {
-        return JSON.parse(match[0]);
-      } catch (e) {
-        return null;
+    try {
+      // ```json\n{...}\n``` の中を抽出
+      const codeBlockMatch = text.match(/```json\\s*({[\\s\\S]*?})\\s*```/i);
+      if (codeBlockMatch) {
+        return JSON.parse(codeBlockMatch[1]);
       }
+
+      // 通常の { ... } のみ抽出
+      const braceMatch = text.match(/{[\s\S]*?}/);
+      if (braceMatch) {
+        return JSON.parse(braceMatch[0]);
+      }
+
+      return null;
+    } catch {
+      return null;
     }
-    return null;
   };
 
   try {
@@ -39,15 +47,17 @@ export default async function handler(req, res) {
         messages: [
           {
             role: 'user',
-            content: `英単語 "${word}" について、以下の形式のJSONのみを返してください。前後に説明・記号・コードブロック（\`\`\`）は一切不要です。
+            content: `英単語 "${word}" について以下の形式の JSON オブジェクトのみを返してください。  
+前後に説明、文章、コードブロック（\`\`\`）などは一切加えず、  
+**{ ... } の中身のみ**を純粋に出力してください：
 
 {
-  "meaning": "...",
+  "meaning": "〜の意味を簡潔に",
   "synonyms": ["...", "...", "..."],
   "simpleSynonyms": ["...", "..."],
-  "etymology": "...",
-  "culturalBackground": "...",
-  "trivia": "..."
+  "etymology": "語源（面白く）",
+  "culturalBackground": "文化的背景（印象に残るように）",
+  "trivia": "雑学・豆知識"
 }`,
           },
         ],
@@ -64,9 +74,9 @@ export default async function handler(req, res) {
         meaning: `${word} の簡易な意味は取得できませんでした。`,
         synonyms: [],
         simpleSynonyms: [],
-        etymology: "語源情報が見つかりませんでした。",
-        culturalBackground: "文化的背景情報が見つかりませんでした。",
-        trivia: "雑学情報が見つかりませんでした。",
+        etymology: '語源情報が見つかりませんでした。',
+        culturalBackground: '文化的背景情報が見つかりませんでした。',
+        trivia: '雑学情報が見つかりませんでした。',
       };
     }
 
