@@ -1,3 +1,5 @@
+// ✅ /api/word-info.js - OpenAI応答ログ付き・代替辞書構成あり
+
 export default async function handler(req, res) {
   const { word } = req.query;
 
@@ -7,24 +9,28 @@ export default async function handler(req, res) {
   const GOOGLE_API_KEY = 'AIzaSyDA3_HPYFCdUavmWkJl1m0VkvHM4py1k24';
   const GOOGLE_CX = '27e106d19abd94bb0';
 
+  const fallbackDictionary = {
+    identify: {
+      meaning: '誰かや何かを特定すること。',
+      synonyms: ['recognize', 'determine', 'verify'],
+      simpleSynonyms: ['find', 'name'],
+      etymology: 'ラテン語 identitas（同一性）+ facere（作る）に由来。',
+      culturalBackground: '警察・科学・医療などの現場で頻繁に使用される単語。',
+      trivia: 'ID（身分証明）の由来ともなる語である。'
+    }
+  };
+
   const extractJsonFromText = (text) => {
     try {
-      // ```json\n{...}\n``` の中を抽出
-      const codeBlockMatch = text.match(/```json\\s*({[\\s\\S]*?})\\s*```/i);
-      if (codeBlockMatch) {
-        return JSON.parse(codeBlockMatch[1]);
-      }
+      const codeBlockMatch = text.match(/```json\s*({[\s\S]*?})\s*```/i);
+      if (codeBlockMatch) return JSON.parse(codeBlockMatch[1]);
 
-      // 通常の { ... } のみ抽出
       const braceMatch = text.match(/{[\s\S]*?}/);
-      if (braceMatch) {
-        return JSON.parse(braceMatch[0]);
-      }
-
-      return null;
-    } catch {
-      return null;
+      if (braceMatch) return JSON.parse(braceMatch[0]);
+    } catch (e) {
+      console.log('❌ JSON parse error:', e);
     }
+    return null;
   };
 
   try {
@@ -35,7 +41,7 @@ export default async function handler(req, res) {
     const imgJson = await imgRes.json();
     const images = imgJson.items?.map((item) => item.link) || [];
 
-    // ✅ OpenAIから情報取得
+    // ✅ OpenAI API呼び出し
     const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -47,27 +53,33 @@ export default async function handler(req, res) {
         messages: [
           {
             role: 'user',
-            content: `英単語 "${word}" について以下の形式の JSON オブジェクトのみを返してください。  
-前後に説明、文章、コードブロック（\`\`\`）などは一切加えず、  
-**{ ... } の中身のみ**を純粋に出力してください：
-
+            content: `英単語 "${word}" に関する情報を次の形式で返してください。
+前後に解説やコードブロックは絶対に入れず、以下のJSONだけ返してください：
 {
-  "meaning": "〜の意味を簡潔に",
+  "meaning": "...",
   "synonyms": ["...", "...", "..."],
   "simpleSynonyms": ["...", "..."],
-  "etymology": "語源（面白く）",
-  "culturalBackground": "文化的背景（印象に残るように）",
-  "trivia": "雑学・豆知識"
-}`,
-          },
+  "etymology": "...",
+  "culturalBackground": "...",
+  "trivia": "..."
+}`
+          }
         ],
-        temperature: 0.7,
-      }),
+        temperature: 0.7
+      })
     });
 
     const aiJson = await openaiRes.json();
     const aiContent = aiJson.choices?.[0]?.message?.content || '';
+
+    console.log('✅ GPT full response:', aiJson);
+    console.log('📦 Extracted content:', aiContent);
+
     let parsed = extractJsonFromText(aiContent);
+
+    if (!parsed && fallbackDictionary[word.toLowerCase()]) {
+      parsed = fallbackDictionary[word.toLowerCase()];
+    }
 
     if (!parsed) {
       parsed = {
@@ -76,17 +88,17 @@ export default async function handler(req, res) {
         simpleSynonyms: [],
         etymology: '語源情報が見つかりませんでした。',
         culturalBackground: '文化的背景情報が見つかりませんでした。',
-        trivia: '雑学情報が見つかりませんでした。',
+        trivia: '雑学情報が見つかりませんでした。'
       };
     }
 
     res.status(200).json({
       word,
       ...parsed,
-      images,
+      images
     });
   } catch (err) {
-    console.error('API error:', err);
+    console.error('❌ API全体エラー:', err);
     res.status(500).json({ error: '情報取得に失敗しました。' });
   }
 }
