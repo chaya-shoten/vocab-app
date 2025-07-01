@@ -7,15 +7,27 @@ export default async function handler(req, res) {
   const GOOGLE_API_KEY = 'AIzaSyDA3_HPYFCdUavmWkJl1m0VkvHM4py1k24';
   const GOOGLE_CX = '27e106d19abd94bb0';
 
+  const extractJsonFromText = (text) => {
+    const match = text.match(/\{[.\s\S]*?\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
+
   try {
-    // ✅ 画像をGoogleから取得
+    // ✅ 画像取得（Googleカスタム検索）
     const imgRes = await fetch(
       `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${word}&searchType=image&num=2`
     );
     const imgJson = await imgRes.json();
     const images = imgJson.items?.map((item) => item.link) || [];
 
-    // ✅ OpenAIで情報を取得
+    // ✅ OpenAIで情報取得
     const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -27,23 +39,7 @@ export default async function handler(req, res) {
         messages: [
           {
             role: 'user',
-            content: `英単語 "${word}" について、以下の情報をそれぞれ200文字以内で日本語で説明してください：
-1. 意味（簡潔に）
-2. 類語（3つ）
-3. 簡単な言い換え（2つ）
-4. 語源（簡単に）
-5. 文化的背景（面白く）
-6. 雑学（記憶に残る豆知識）
-
-形式はJSONで：
-{
-  "meaning": "...",
-  "synonyms": ["...", "...", "..."],
-  "simpleSynonyms": ["...", "..."],
-  "etymology": "...",
-  "culturalBackground": "...",
-  "trivia": "..."
-}`,
+            content: `以下の形式で、単語 "${word}" に関する情報をすべて日本語で出力してください。\nJSON形式のみ返し、前後に説明や記号（コードブロック）は加えないでください。\n\n{\n  "meaning": "...",\n  "synonyms": ["...", "...", "..."],\n  "simpleSynonyms": ["...", "..."],\n  "etymology": "...",\n  "culturalBackground": "...",\n  "trivia": "..." \n}`,
           },
         ],
         temperature: 0.7,
@@ -51,19 +47,17 @@ export default async function handler(req, res) {
     });
 
     const aiJson = await openaiRes.json();
-    const aiContent = aiJson.choices?.[0]?.message?.content;
+    const aiContent = aiJson.choices?.[0]?.message?.content || '';
 
-    let parsed = null;
-    try {
-      parsed = JSON.parse(aiContent);
-    } catch (e) {
+    let parsed = extractJsonFromText(aiContent);
+    if (!parsed) {
       parsed = {
-        meaning: `${word} の意味（取得失敗）`,
+        meaning: `${word} の簡易な意味は取得できませんでした。`,
         synonyms: [],
         simpleSynonyms: [],
-        etymology: '',
-        culturalBackground: '',
-        trivia: '',
+        etymology: "語源情報が見つかりませんでした。",
+        culturalBackground: "文化的背景情報が見つかりませんでした。",
+        trivia: "雑学情報が見つかりませんでした。",
       };
     }
 
@@ -73,7 +67,7 @@ export default async function handler(req, res) {
       images,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'OpenAIまたはGoogleの取得に失敗しました' });
+    console.error('API error:', err);
+    res.status(500).json({ error: '情報取得に失敗しました。' });
   }
 }
