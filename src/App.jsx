@@ -1,4 +1,6 @@
+// src/App.jsx
 import React, { useState, useEffect } from "react";
+import "./index.css";
 
 export default function App() {
   const [text, setText] = useState("");
@@ -74,45 +76,44 @@ export default function App() {
   const progress = words.length ? Math.round(((currentIndex + 1) / words.length) * 100) : 0;
 
   return (
-    <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
-      <h2>英文を入力してください</h2>
+    <div className="container">
+      <h2 className="title">英文を入力してください</h2>
       <textarea
         placeholder="ここに英文を貼ってください"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        style={{ width: "100%", height: 100 }}
+        className="inputBox"
       />
-      <div style={{ marginTop: 10 }}>
+      <div className="buttonRow">
         <button onClick={handleSubmitText}>単語抽出して学習開始</button>
-        <button onClick={resetProgress} style={{ marginLeft: 10 }}>進捗をリセット</button>
+        <button onClick={resetProgress}>進捗をリセット</button>
       </div>
 
       {loading && <p>データ取得中...</p>}
 
       {words.length > 0 && currentIndex < words.length && !knownWords.includes(currentWord) && (
-        <div style={{ marginTop: 20 }}>
+        <div className="card">
           <p>進捗: {progress}%</p>
-          <h3>この単語、わかりますか？</h3>
-          <p style={{ fontSize: 24 }}>{currentWord}</p>
+          <h3>{currentWord}</h3>
           {!showDetails ? (
-            <div style={{ display: "flex", gap: 10 }}>
+            <div className="buttonRow">
               <button onClick={() => handleResponse(true)}>Yes</button>
               <button onClick={() => handleResponse(false)}>No</button>
             </div>
           ) : wordData ? (
-            <div style={{ marginTop: 10 }}>
+            <div>
               <p><strong>意味:</strong> {wordData.meaning}</p>
               <p><strong>類語:</strong> {wordData.synonyms.join(", ")}</p>
               <p><strong>簡単な言い換え:</strong> {wordData.simpleSynonyms.join(", ")}</p>
               <p><strong>語源:</strong> {wordData.etymology}</p>
               <p><strong>文化的背景:</strong> {wordData.culturalBackground}</p>
               <p><strong>雑学:</strong> {wordData.trivia}</p>
-              <div style={{ display: "flex", gap: 10, overflowX: "scroll" }}>
+              <div className="imageRow">
                 {wordData.images.map((img, i) => (
-                  <img key={i} src={img} alt={`img-${i}`} style={{ height: 100 }} />
+                  <img key={i} src={img} alt={`img-${i}`} className="image" />
                 ))}
               </div>
-              <button onClick={nextWord} style={{ marginTop: 10 }}>次の単語へ</button>
+              <button onClick={nextWord} className="nextButton">次の単語へ</button>
             </div>
           ) : <p>この単語の情報は見つかりませんでした。</p>}
         </div>
