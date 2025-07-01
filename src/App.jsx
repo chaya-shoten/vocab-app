@@ -4,7 +4,7 @@ export default function App() { const [text, setText] = useState(""); const [wor
 
 const extractWords = (text) => { const stopwords = new Set([ "the", "and", "was", "for", "are", "but", "not", "you", "all", "any", "can", "had", "her", "his", "how", "man", "our", "out", "say", "she", "too", "use", "a", "an", "by", "do", "if", "in", "into", "is", "it", "no", "of", "on", "or", "such", "that", "their", "then", "there", "these", "they", "this", "to", "with", "would", "as", "at", "be", "have", "from", "including", "what", "due", "see" ]); return [...new Set( (text.toLowerCase().match(/\b[a-z]{3,}\b/g) || []).filter( (w) => !stopwords.has(w) ) )]; };
 
-const fetchWordData = async (word) => { try { const res = await fetch(/api/word-info?word=${encodeURIComponent(word)}); return await res.json(); } catch { return { meaning: "取得エラー", synonyms: [], simpleSynonyms: [], etymology: "", culturalBackground: "", trivia: "", images: [] }; } };
+const fetchWordData = async (word) => { try { const res = await fetch(\/api\/word-info?word=${encodeURIComponent(word)}); return await res.json(); } catch { return { meaning: "取得エラー", synonyms: [], simpleSynonyms: [], etymology: "", culturalBackground: "", trivia: "", images: [] }; } }`); return await res.json(); } catch { return { meaning: "取得エラー", synonyms: [], simpleSynonyms: [], etymology: "", culturalBackground: "", trivia: "", images: [] }; } };
 
 const handleSubmitText = async () => { const extracted = extractWords(text); setWords(extracted); setCurrentIndex(0); setShowDetails(false); setLoading(true); const newMap = {}; for (const w of extracted) { newMap[w] = await fetchWordData(w); } setWordDataMap(newMap); setLoading(false); };
 
