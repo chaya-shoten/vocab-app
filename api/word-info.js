@@ -1,6 +1,6 @@
-import axios from 'axios';
+const axios = require('axios');
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   const { word } = req.query;
   if (!word) return res.status(400).json({ error: 'word is required' });
 
@@ -8,6 +8,7 @@ export default async function handler(req, res) {
   const CX = '27e106d19abd94bb0';
 
   try {
+    // Google画像検索API
     const imageRes = await axios.get('https://www.googleapis.com/customsearch/v1', {
       params: {
         key: API_KEY,
@@ -20,6 +21,7 @@ export default async function handler(req, res) {
 
     const images = imageRes.data.items.map(item => item.link);
 
+    // Wikipedia要約（日本語）
     const wikiRes = await axios.get(`https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(word)}`).catch(() => null);
 
     const summary = wikiRes?.data?.extract || `${word} に関する情報はWikipediaで見つかりませんでした。`;
@@ -39,4 +41,4 @@ export default async function handler(req, res) {
     console.error(error.message);
     res.status(500).json({ error: 'データ取得に失敗しました' });
   }
-}
+};
