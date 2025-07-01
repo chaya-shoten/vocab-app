@@ -1,35 +1,79 @@
 export default async function handler(req, res) {
   const { word } = req.query;
+
   if (!word) return res.status(400).json({ error: 'word is required' });
 
-  const API_KEY = 'AIzaSyDA3_HPYFCdUavmWkJl1m0VkvHM4py1k24';
-  const CX = '27e106d19abd94bb0';
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+  const GOOGLE_API_KEY = 'AIzaSyDA3_HPYFCdUavmWkJl1m0VkvHM4py1k24';
+  const GOOGLE_CX = '27e106d19abd94bb0';
 
   try {
-    // Google画像検索（fetch版）
-    const imageRes = await fetch(`https://www.googleapis.com/customsearch/v1?key=${API_KEY}&cx=${CX}&q=${word}&searchType=image&num=2`);
-    const imageData = await imageRes.json();
-    const images = imageData.items?.map(item => item.link) || [];
+    // ✅ 画像をGoogleから取得
+    const imgRes = await fetch(
+      `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${word}&searchType=image&num=2`
+    );
+    const imgJson = await imgRes.json();
+    const images = imgJson.items?.map((item) => item.link) || [];
 
-    // Wikipedia要約（fetch版）
-    const wikiRes = await fetch(`https://ja.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(word)}`);
-    const wikiData = await wikiRes.ok ? await wikiRes.json() : null;
+    // ✅ OpenAIで情報を取得
+    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'user',
+            content: `英単語 "${word}" について、以下の情報をそれぞれ200文字以内で日本語で説明してください：
+1. 意味（簡潔に）
+2. 類語（3つ）
+3. 簡単な言い換え（2つ）
+4. 語源（簡単に）
+5. 文化的背景（面白く）
+6. 雑学（記憶に残る豆知識）
 
-    const summary = wikiData?.extract || `${word} に関する情報はWikipediaで見つかりませんでした。`;
-    const trimmed = summary.length > 180 ? summary.slice(0, 160) + '...' : summary;
+形式はJSONで：
+{
+  "meaning": "...",
+  "synonyms": ["...", "...", "..."],
+  "simpleSynonyms": ["...", "..."],
+  "etymology": "...",
+  "culturalBackground": "...",
+  "trivia": "..."
+}`,
+          },
+        ],
+        temperature: 0.7,
+      }),
+    });
+
+    const aiJson = await openaiRes.json();
+    const aiContent = aiJson.choices?.[0]?.message?.content;
+
+    let parsed = null;
+    try {
+      parsed = JSON.parse(aiContent);
+    } catch (e) {
+      parsed = {
+        meaning: `${word} の意味（取得失敗）`,
+        synonyms: [],
+        simpleSynonyms: [],
+        etymology: '',
+        culturalBackground: '',
+        trivia: '',
+      };
+    }
 
     res.status(200).json({
       word,
-      meaning: `${word} の日本語の意味（仮）です。`,
-      synonyms: ['類語1', '類語2'],
-      simpleSynonyms: ['簡単な言い換え'],
-      etymology: trimmed,
-      culturalBackground: trimmed,
-      trivia: trimmed,
-      images
+      ...parsed,
+      images,
     });
-  } catch (error) {
-    console.error('API ERROR:', error);
-    res.status(500).json({ error: 'データ取得に失敗しました' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'OpenAIまたはGoogleの取得に失敗しました' });
   }
 }
