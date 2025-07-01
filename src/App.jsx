@@ -28,6 +28,38 @@ export default function App() {
     )];
   };
 
+  const fetchWordData = async (word) => {
+    try {
+      const res = await fetch(`/api/word-info?word=${word}`);
+      const data = await res.json();
+
+      if (!data.meaning || data.meaning.includes("仮")) {
+        return {
+          word,
+          meaning: `${word} の簡易な意味は取得できませんでした。`,
+          synonyms: [],
+          simpleSynonyms: [],
+          etymology: "語源情報が見つかりませんでした。",
+          culturalBackground: "文化的背景情報が見つかりませんでした。",
+          trivia: "雑学情報が見つかりませんでした。",
+          images: data.images || []
+        };
+      }
+      return data;
+    } catch (err) {
+      return {
+        word,
+        meaning: `${word} の情報を取得できませんでした。`,
+        synonyms: [],
+        simpleSynonyms: [],
+        etymology: "",
+        culturalBackground: "",
+        trivia: "",
+        images: []
+      };
+    }
+  };
+
   const handleSubmitText = async () => {
     const extracted = extractWords(text);
     setWords(extracted);
@@ -37,8 +69,7 @@ export default function App() {
     setLoading(true);
 
     for (const word of extracted) {
-      const res = await fetch(`/api/word-info?word=${word}`);
-      const data = await res.json();
+      const data = await fetchWordData(word);
       newWordData[word] = data;
     }
 
